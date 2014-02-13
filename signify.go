@@ -16,6 +16,11 @@ const (
 	commentHdr = "untrusted comment: "
 )
 
+var (
+	algoEd = []byte{'E', 'd'}
+	algoBcrypt = []byte{'B', 'K'}
+)
+
 type rawEncryptedKey struct {
 	PKAlgo      [2]byte
 	KDFAlgo     [2]byte
@@ -59,6 +64,14 @@ func ReadFile(r io.Reader) (comment string, content []byte, err error) {
 }
 
 func ParsePrivateKey(raw []byte, passphrase string) (*rawEncryptedKey, error) {
+
+	if !bytes.Equal(algoEd, raw[:2]) {
+		return nil, errors.New("signify: unknown public key algorithm")
+	}
+	if !bytes.Equal(algoBcrypt, raw[2:4]) {
+		return nil, errors.New("signify: unknown kdf algorithm")
+	}
+
 	var ek rawEncryptedKey
 	if err := binary.Read(bytes.NewReader(raw), binary.BigEndian, &ek); err != nil {
 		return nil, err
@@ -67,6 +80,11 @@ func ParsePrivateKey(raw []byte, passphrase string) (*rawEncryptedKey, error) {
 }
 
 func ParsePublicKey(raw []byte) (*rawPublicKey, error) {
+
+	if !bytes.Equal(algoEd, raw[:2]) {
+		return nil, errors.New("signify: unknown public key algorithm")
+	}
+
 	var pub rawPublicKey
 	if err := binary.Read(bytes.NewReader(raw), binary.BigEndian, &pub); err != nil {
 		return nil, err
@@ -75,6 +93,11 @@ func ParsePublicKey(raw []byte) (*rawPublicKey, error) {
 }
 
 func ParseSignature(raw []byte) (*rawSignature, error) {
+
+	if !bytes.Equal(algoEd, raw[:2]) {
+		return nil, errors.New("signify: unknown public key algorithm")
+	}
+
 	var sig rawSignature
 	if err := binary.Read(bytes.NewReader(raw), binary.BigEndian, &sig); err != nil {
 		return nil, err
