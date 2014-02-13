@@ -3,7 +3,6 @@ package signify
 import (
 	"bytes"
 	"io/ioutil"
-	"os"
 	"testing"
 
 	"github.com/agl/ed25519"
@@ -83,13 +82,12 @@ var readfiletests = []readfiletest{
 }
 
 func testReadFile(t *testing.T, file, comment string, content []byte) {
-	f, err := os.Open(file)
+	buf, err := ioutil.ReadFile(file)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("%s: %s\n", file, err)
 	}
-	defer f.Close()
 
-	rcomment, rcontent, err := ReadFile(f)
+	rcomment, rcontent, err := ReadFile(bytes.NewReader(buf))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -116,17 +114,7 @@ func TestParsePrivateKey(t *testing.T) {
 			continue
 		}
 
-		buf, err := ioutil.ReadFile(tc.file)
-		if err != nil {
-			t.Fatalf("%s: %s\n", tc.file, err)
-		}
-
-		_, data, err := ReadFile(bytes.NewReader(buf))
-		if err != nil {
-			t.Fatalf("%s: %s\n", tc.file, err)
-		}
-
-		ek, err := ParsePrivateKey(data, "")
+		ek, err := ParsePrivateKey(tc.content, "")
 		if err != nil {
 			t.Errorf("%s: %s\n", tc.file, err)
 			continue
