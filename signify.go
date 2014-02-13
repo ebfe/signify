@@ -16,7 +16,7 @@ const (
 	commentHdr = "untrusted comment: "
 )
 
-type encryptedKey struct {
+type rawEncryptedKey struct {
 	PKAlgo      [2]byte
 	KDFAlgo     [2]byte
 	KDFRounds   uint32
@@ -26,13 +26,13 @@ type encryptedKey struct {
 	PrivateKey  [ed25519.PrivateKeySize]byte
 }
 
-type pubkey struct {
+type rawPublicKey struct {
 	PKAlgo      [2]byte
 	Fingerprint [8]byte
 	PublicKey   [ed25519.PublicKeySize]byte
 }
 
-type sig struct {
+type rawSignature struct {
 	PKAlgo      [2]byte
 	Fingerprint [8]byte
 	Signature   [ed25519.SignatureSize]byte
@@ -58,24 +58,24 @@ func ReadFile(r io.Reader) (comment string, content []byte, err error) {
 	return
 }
 
-func ParsePrivateKey(raw []byte, passphrase string) (*encryptedKey, error) {
-	var ek encryptedKey
+func ParsePrivateKey(raw []byte, passphrase string) (*rawEncryptedKey, error) {
+	var ek rawEncryptedKey
 	if err := binary.Read(bytes.NewReader(raw), binary.BigEndian, &ek); err != nil {
 		return nil, err
 	}
 	return &ek, nil
 }
 
-func ParsePublicKey(raw []byte) (*pubkey, error) {
-	var pub pubkey
+func ParsePublicKey(raw []byte) (*rawPublicKey, error) {
+	var pub rawPublicKey
 	if err := binary.Read(bytes.NewReader(raw), binary.BigEndian, &pub); err != nil {
 		return nil, err
 	}
 	return &pub, nil
 }
 
-func ParseSignature(raw []byte) (*sig, error) {
-	var sig sig
+func ParseSignature(raw []byte) (*rawSignature, error) {
+	var sig rawSignature
 	if err := binary.Read(bytes.NewReader(raw), binary.BigEndian, &sig); err != nil {
 		return nil, err
 	}
