@@ -109,7 +109,7 @@ func TestReadFile(t *testing.T) {
 
 func TestParsePrivateKey(t *testing.T) {
 	for _, tc := range readfiletests {
-		want, ok := tc.parsed.(rawEncryptedKey);
+		want, ok := tc.parsed.(rawEncryptedKey)
 		if !ok {
 			continue
 		}
@@ -128,7 +128,7 @@ func TestParsePrivateKey(t *testing.T) {
 
 func TestParsePublicKey(t *testing.T) {
 	for _, tc := range readfiletests {
-		want, ok := tc.parsed.(rawPublicKey);
+		want, ok := tc.parsed.(rawPublicKey)
 		if !ok {
 			continue
 		}

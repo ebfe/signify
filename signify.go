@@ -17,7 +17,7 @@ const (
 )
 
 var (
-	algoEd = []byte{'E', 'd'}
+	algoEd     = []byte{'E', 'd'}
 	algoBcrypt = []byte{'B', 'K'}
 )
 
@@ -104,4 +104,3 @@ func ParseSignature(raw []byte) (*rawSignature, error) {
 	}
 	return &sig, nil
 }
-
