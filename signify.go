@@ -2,7 +2,9 @@ package signify
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/base64"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"github.com/agl/ed25519"
@@ -54,4 +56,12 @@ func ReadFile(r io.Reader) (comment string, content []byte, err error) {
 	content, err = base64.StdEncoding.DecodeString(sc.Text())
 
 	return
+}
+
+func ParsePrivateKey(raw []byte, passphrase string) (*encryptedKey, error) {
+	var ek encryptedKey
+	if err := binary.Read(bytes.NewReader(raw), binary.BigEndian, &ek); err != nil {
+		return nil, err
+	}
+	return &ek, nil
 }

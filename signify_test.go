@@ -2,6 +2,7 @@ package signify
 
 import (
 	"bytes"
+	"io/ioutil"
 	"os"
 	"testing"
 
@@ -105,5 +106,34 @@ func testReadFile(t *testing.T, file, comment string, content []byte) {
 func TestReadFile(t *testing.T) {
 	for _, tc := range readfiletests {
 		testReadFile(t, tc.file, tc.comment, tc.content)
+	}
+}
+
+func TestParsePrivateKey(t *testing.T) {
+	for _, tc := range readfiletests {
+		want, ok := tc.parsed.(encryptedKey);
+		if !ok {
+			continue
+		}
+
+		buf, err := ioutil.ReadFile(tc.file)
+		if err != nil {
+			t.Fatalf("%s: %s\n", tc.file, err)
+		}
+
+		_, data, err := ReadFile(bytes.NewReader(buf))
+		if err != nil {
+			t.Fatalf("%s: %s\n", tc.file, err)
+		}
+
+		ek, err := ParsePrivateKey(data, "")
+		if err != nil {
+			t.Errorf("%s: %s\n", tc.file, err)
+			continue
+		}
+
+		if want != *ek {
+			t.Errorf("%s: expected: %+v got: %+v\n", tc.file, want, ek)
+		}
 	}
 }
