@@ -65,3 +65,20 @@ func ParsePrivateKey(raw []byte, passphrase string) (*encryptedKey, error) {
 	}
 	return &ek, nil
 }
+
+func ParsePublicKey(raw []byte) (*pubkey, error) {
+	var pub pubkey
+	if err := binary.Read(bytes.NewReader(raw), binary.BigEndian, &pub); err != nil {
+		return nil, err
+	}
+	return &pub, nil
+}
+
+func ParseSignature(raw []byte) (*sig, error) {
+	var sig sig
+	if err := binary.Read(bytes.NewReader(raw), binary.BigEndian, &sig); err != nil {
+		return nil, err
+	}
+	return &sig, nil
+}
+
