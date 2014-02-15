@@ -91,3 +91,48 @@ func parseRawSignature(data []byte) (*rawSignature, error) {
 	}
 	return &sig, nil
 }
+
+func ParsePrivateKey(data, passphrase []byte) (*PrivateKey, error) {
+	if !bytes.Equal(algoEd, data[:2]) {
+		return nil, errors.New("signify: unknown public key algorithm")
+	}
+	if !bytes.Equal(algoBcrypt, data[2:4]) {
+		return nil, errors.New("signify: unknown kdf algorithm")
+	}
+
+	rek, err := parseRawEncryptedKey(data)
+	if err != nil {
+		return nil, err
+	}
+
+	priv := PrivateKey(rek.PrivateKey)
+	return &priv, nil
+}
+
+func ParsePublicKey(data []byte) (*PublicKey, error) {
+	if !bytes.Equal(algoEd, data[:2]) {
+		return nil, errors.New("signify: unknown public key algorithm")
+	}
+
+	rpk, err := parseRawPublicKey(data)
+	if err != nil {
+		return nil, err
+	}
+
+	pk := PublicKey(rpk.PublicKey)
+	return &pk, nil
+}
+
+func ParseSignature(data []byte) (*Signature, error) {
+	if !bytes.Equal(algoEd, data[:2]) {
+		return nil, errors.New("signify: unknown public key algorithm")
+	}
+
+	rs, err := parseRawSignature(data)
+	if err != nil {
+		return nil, err
+	}
+
+	sig := Signature(rs.Signature)
+	return &sig, nil
+}

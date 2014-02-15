@@ -254,3 +254,60 @@ func TestParseRawSignature(t *testing.T) {
 		}
 	}
 }
+
+func TestParsePrivateKey(t *testing.T) {
+	for _, tc := range readfiletests {
+		want, ok := tc.parsed.(PrivateKey)
+		if !ok {
+			continue
+		}
+
+		priv, err := ParsePrivateKey(tc.content, []byte{})
+		if err != nil {
+			t.Errorf("%s: %s\n", tc.file, err)
+			continue
+		}
+
+		if want != *priv {
+			t.Errorf("%s: expected: %+v got: %+v\n", tc.file, want, priv)
+		}
+	}
+}
+
+func TestParsePublicKey(t *testing.T) {
+	for _, tc := range readfiletests {
+		want, ok := tc.parsed.(PublicKey)
+		if !ok {
+			continue
+		}
+
+		pub, err := ParsePublicKey(tc.content)
+		if err != nil {
+			t.Errorf("%s: %s\n", tc.file, err)
+			continue
+		}
+
+		if want != *pub {
+			t.Errorf("%s: expected: %+v got: %+v\n", tc.file, want, pub)
+		}
+	}
+}
+
+func TestParseSignature(t *testing.T) {
+	for _, tc := range readfiletests {
+		want, ok := tc.parsed.(Signature)
+		if !ok {
+			continue
+		}
+
+		sig, err := ParseSignature(tc.content)
+		if err != nil {
+			t.Errorf("%s: %s\n", tc.file, err)
+			continue
+		}
+
+		if want != *sig {
+			t.Errorf("%s: expected: %+v got: %+v\n", tc.file, want, sig)
+		}
+	}
+}
