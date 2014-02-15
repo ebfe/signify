@@ -196,6 +196,16 @@ var testfiles = []testfile{
 	},
 }
 
+func getTestFile(t *testing.T, file string) *testfile {
+	for i := range testfiles {
+		if testfiles[i].file == file {
+			return &testfiles[i]
+		}
+	}
+	t.Fatalf("missing test file: %q", file)
+	return nil
+}
+
 func testReadFile(t *testing.T, file, comment string, content []byte) {
 	buf, err := ioutil.ReadFile(file)
 	if err != nil {
@@ -332,6 +342,80 @@ func TestParseSignature(t *testing.T) {
 
 		if want != *sig {
 			t.Errorf("%s: expected: %+v got: %+v\n", tc.file, want, sig)
+		}
+	}
+}
+
+type signtest struct {
+	priv string
+	msg  string
+	sig  string
+}
+
+var signtests = []signtest{
+	{
+		priv: "_testdata/test.key",
+		msg:  "_testdata/test.msg",
+		sig:  "_testdata/test.msg.sig",
+	}, {
+		priv: "_testdata/test.nopass.key",
+		msg:  "_testdata/test.msg",
+		sig:  "_testdata/test.nopass.msg.sig",
+	},
+}
+
+func TestSign(t *testing.T) {
+	for i, tc := range signtests {
+		priv := getTestFile(t, tc.priv).parsed.(PrivateKey)
+		want := getTestFile(t, tc.sig).parsed.(Signature)
+		msg, err := ioutil.ReadFile(tc.msg)
+		if err != nil {
+			t.Fatal(err)
+		}
+		sig := Sign(&priv, msg)
+		if want != *sig {
+			t.Errorf("[%d] expected: %+v\ngot: %+v\n", i, want, sig)
+		}
+	}
+}
+
+type verifytest struct {
+	pub string
+	msg string
+	sig string
+	ok  bool
+}
+
+var verifytests = []verifytest{
+	{
+		pub: "_testdata/test.pub",
+		msg: "_testdata/test.msg",
+		sig: "_testdata/test.msg.sig",
+		ok:  true,
+	}, {
+		pub: "_testdata/test.nopass.pub",
+		msg: "_testdata/test.msg",
+		sig: "_testdata/test.nopass.msg.sig",
+		ok:  true,
+	}, {
+		pub: "_testdata/test.nopass.pub",
+		msg: "_testdata/test.msg",
+		sig: "_testdata/test.msg.sig",
+		ok:  false,
+	},
+}
+
+func TestVerify(t *testing.T) {
+	for i, tc := range verifytests {
+		pub := getTestFile(t, tc.pub).parsed.(PublicKey)
+		sig := getTestFile(t, tc.sig).parsed.(Signature)
+		msg, err := ioutil.ReadFile(tc.msg)
+		if err != nil {
+			t.Fatal(err)
+		}
+		ok := Verify(&pub, msg, &sig)
+		if ok != tc.ok {
+			t.Errorf("[%d] expected: %t got: %t", i, tc.ok, ok)
 		}
 	}
 }
