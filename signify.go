@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/agl/ed25519"
+	"github.com/ebfe/bcrypt_pbkdf"
 )
 
 const (
@@ -92,6 +93,19 @@ func parseRawSignature(data []byte) (*rawSignature, error) {
 	return &sig, nil
 }
 
+func decryptPrivateKey(ek *[ed25519.PrivateKeySize]byte, passphrase, salt []byte, rounds int) *PrivateKey {
+	var priv PrivateKey
+	if rounds > 0 {
+		xorkey := bcrypt_pbkdf.Key(passphrase, salt, rounds, ed25519.PrivateKeySize)
+		for i := range priv {
+			priv[i] = ek[i] ^ xorkey[i]
+		}
+	} else {
+		priv = PrivateKey(*ek)
+	}
+	return &priv
+}
+
 func ParsePrivateKey(data, passphrase []byte) (*PrivateKey, error) {
 	if !bytes.Equal(algoEd, data[:2]) {
 		return nil, errors.New("signify: unknown public key algorithm")
@@ -105,8 +119,8 @@ func ParsePrivateKey(data, passphrase []byte) (*PrivateKey, error) {
 		return nil, err
 	}
 
-	priv := PrivateKey(rek.PrivateKey)
-	return &priv, nil
+	priv := decryptPrivateKey(&rek.PrivateKey, passphrase, rek.Salt[:], int(rek.KDFRounds))
+	return priv, nil
 }
 
 func ParsePublicKey(data []byte) (*PublicKey, error) {
