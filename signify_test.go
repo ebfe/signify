@@ -8,7 +8,7 @@ import (
 	"github.com/agl/ed25519"
 )
 
-type readfiletest struct {
+type testfile struct {
 	file       string
 	passphrase []byte
 	comment    string
@@ -17,7 +17,7 @@ type readfiletest struct {
 	parsed     interface{}
 }
 
-var readfiletests = []readfiletest{
+var testfiles = []testfile{
 	{
 		file:       "_testdata/test.key",
 		passphrase: []byte("passphrase"),
@@ -217,13 +217,13 @@ func testReadFile(t *testing.T, file, comment string, content []byte) {
 }
 
 func TestReadFile(t *testing.T) {
-	for _, tc := range readfiletests {
+	for _, tc := range testfiles {
 		testReadFile(t, tc.file, tc.comment, tc.content)
 	}
 }
 
 func TestParseRawEncryptedKey(t *testing.T) {
-	for _, tc := range readfiletests {
+	for _, tc := range testfiles {
 		want, ok := tc.parsedRaw.(rawEncryptedKey)
 		if !ok {
 			continue
@@ -242,7 +242,7 @@ func TestParseRawEncryptedKey(t *testing.T) {
 }
 
 func TestParseRawPublicKey(t *testing.T) {
-	for _, tc := range readfiletests {
+	for _, tc := range testfiles {
 		want, ok := tc.parsedRaw.(rawPublicKey)
 		if !ok {
 			continue
@@ -261,7 +261,7 @@ func TestParseRawPublicKey(t *testing.T) {
 }
 
 func TestParseRawSignature(t *testing.T) {
-	for _, tc := range readfiletests {
+	for _, tc := range testfiles {
 		want, ok := tc.parsedRaw.(rawSignature)
 		if !ok {
 			continue
@@ -280,7 +280,7 @@ func TestParseRawSignature(t *testing.T) {
 }
 
 func TestParsePrivateKey(t *testing.T) {
-	for _, tc := range readfiletests {
+	for _, tc := range testfiles {
 		want, ok := tc.parsed.(PrivateKey)
 		if !ok {
 			continue
@@ -299,7 +299,7 @@ func TestParsePrivateKey(t *testing.T) {
 }
 
 func TestParsePublicKey(t *testing.T) {
-	for _, tc := range readfiletests {
+	for _, tc := range testfiles {
 		want, ok := tc.parsed.(PublicKey)
 		if !ok {
 			continue
@@ -318,7 +318,7 @@ func TestParsePublicKey(t *testing.T) {
 }
 
 func TestParseSignature(t *testing.T) {
-	for _, tc := range readfiletests {
+	for _, tc := range testfiles {
 		want, ok := tc.parsed.(Signature)
 		if !ok {
 			continue
