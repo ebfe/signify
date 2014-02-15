@@ -262,7 +262,7 @@ func TestParsePrivateKey(t *testing.T) {
 			continue
 		}
 
-		priv, err := ParsePrivateKey(tc.content, []byte{})
+		priv, err := ParsePrivateKey(tc.content, tc.passphrase)
 		if err != nil {
 			t.Errorf("%s: %s\n", tc.file, err)
 			continue

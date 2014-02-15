@@ -3,6 +3,8 @@ package signify
 import (
 	"bufio"
 	"bytes"
+	"crypto/sha512"
+	"crypto/subtle"
 	"encoding/base64"
 	"encoding/binary"
 	"errors"
@@ -93,17 +95,25 @@ func parseRawSignature(data []byte) (*rawSignature, error) {
 	return &sig, nil
 }
 
-func decryptPrivateKey(ek *[ed25519.PrivateKeySize]byte, passphrase, salt []byte, rounds int) *PrivateKey {
+func decryptPrivateKey(rek *rawEncryptedKey, passphrase []byte) (*PrivateKey, error) {
 	var priv PrivateKey
-	if rounds > 0 {
-		xorkey := bcrypt_pbkdf.Key(passphrase, salt, rounds, ed25519.PrivateKeySize)
+	if rek.KDFRounds > 0 {
+		xorkey := bcrypt_pbkdf.Key(passphrase, rek.Salt[:], int(rek.KDFRounds), ed25519.PrivateKeySize)
 		for i := range priv {
-			priv[i] = ek[i] ^ xorkey[i]
+			priv[i] = rek.PrivateKey[i] ^ xorkey[i]
 		}
 	} else {
-		priv = PrivateKey(*ek)
+		priv = PrivateKey(rek.PrivateKey)
 	}
-	return &priv
+
+	sha := sha512.New()
+	sha.Write(priv[:])
+	checksum := sha.Sum(nil)
+
+	if subtle.ConstantTimeCompare(checksum[:len(rek.Checksum)], rek.Checksum[:]) != 1 {
+		return nil, errors.New("signify: invalid passphrase")
+	}
+	return &priv, nil
 }
 
 func ParsePrivateKey(data, passphrase []byte) (*PrivateKey, error) {
@@ -119,8 +129,7 @@ func ParsePrivateKey(data, passphrase []byte) (*PrivateKey, error) {
 		return nil, err
 	}
 
-	priv := decryptPrivateKey(&rek.PrivateKey, passphrase, rek.Salt[:], int(rek.KDFRounds))
-	return priv, nil
+	return decryptPrivateKey(rek, passphrase)
 }
 
 func ParsePublicKey(data []byte) (*PublicKey, error) {
