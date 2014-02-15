@@ -25,9 +25,20 @@ var (
 	algoBcrypt = []byte{'B', 'K'}
 )
 
-type PrivateKey [ed25519.PrivateKeySize]byte
-type PublicKey [ed25519.PublicKeySize]byte
-type Signature [ed25519.SignatureSize]byte
+type PrivateKey struct {
+	Bytes       [ed25519.PrivateKeySize]byte
+	Fingerprint [8]byte
+}
+
+type PublicKey struct {
+	Bytes       [ed25519.PublicKeySize]byte
+	Fingerprint [8]byte
+}
+
+type Signature struct {
+	Bytes       [ed25519.SignatureSize]byte
+	Fingerprint [8]byte
+}
 
 type rawEncryptedKey struct {
 	PKAlgo      [2]byte
@@ -99,20 +110,23 @@ func decryptPrivateKey(rek *rawEncryptedKey, passphrase []byte) (*PrivateKey, er
 	var priv PrivateKey
 	if rek.KDFRounds > 0 {
 		xorkey := bcrypt_pbkdf.Key(passphrase, rek.Salt[:], int(rek.KDFRounds), ed25519.PrivateKeySize)
-		for i := range priv {
-			priv[i] = rek.PrivateKey[i] ^ xorkey[i]
+		for i := range priv.Bytes {
+			priv.Bytes[i] = rek.PrivateKey[i] ^ xorkey[i]
 		}
 	} else {
-		priv = PrivateKey(rek.PrivateKey)
+		priv.Bytes = rek.PrivateKey
 	}
 
 	sha := sha512.New()
-	sha.Write(priv[:])
+	sha.Write(priv.Bytes[:])
 	checksum := sha.Sum(nil)
 
 	if subtle.ConstantTimeCompare(checksum[:len(rek.Checksum)], rek.Checksum[:]) != 1 {
 		return nil, errors.New("signify: invalid passphrase")
 	}
+
+	priv.Fingerprint = rek.Fingerprint
+
 	return &priv, nil
 }
 
@@ -142,7 +156,10 @@ func ParsePublicKey(data []byte) (*PublicKey, error) {
 		return nil, err
 	}
 
-	pk := PublicKey(rpk.PublicKey)
+	pk := PublicKey{
+		Bytes:       rpk.PublicKey,
+		Fingerprint: rpk.Fingerprint,
+	}
 	return &pk, nil
 }
 
@@ -156,6 +173,9 @@ func ParseSignature(data []byte) (*Signature, error) {
 		return nil, err
 	}
 
-	sig := Signature(rs.Signature)
+	sig := Signature{
+		Bytes:       rs.Signature,
+		Fingerprint: rs.Fingerprint,
+	}
 	return &sig, nil
 }
