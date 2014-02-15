@@ -7,9 +7,10 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"github.com/agl/ed25519"
 	"io"
 	"strings"
+
+	"github.com/agl/ed25519"
 )
 
 const (
@@ -20,6 +21,10 @@ var (
 	algoEd     = []byte{'E', 'd'}
 	algoBcrypt = []byte{'B', 'K'}
 )
+
+type PrivateKey [ed25519.PrivateKeySize]byte
+type PublicKey [ed25519.PublicKeySize]byte
+type Signature [ed25519.SignatureSize]byte
 
 type rawEncryptedKey struct {
 	PKAlgo      [2]byte
@@ -63,43 +68,25 @@ func ReadFile(r io.Reader) (comment string, content []byte, err error) {
 	return
 }
 
-func ParsePrivateKey(raw []byte, passphrase string) (*rawEncryptedKey, error) {
-
-	if !bytes.Equal(algoEd, raw[:2]) {
-		return nil, errors.New("signify: unknown public key algorithm")
-	}
-	if !bytes.Equal(algoBcrypt, raw[2:4]) {
-		return nil, errors.New("signify: unknown kdf algorithm")
-	}
-
+func parseRawEncryptedKey(data []byte) (*rawEncryptedKey, error) {
 	var ek rawEncryptedKey
-	if err := binary.Read(bytes.NewReader(raw), binary.BigEndian, &ek); err != nil {
+	if err := binary.Read(bytes.NewReader(data), binary.BigEndian, &ek); err != nil {
 		return nil, err
 	}
 	return &ek, nil
 }
 
-func ParsePublicKey(raw []byte) (*rawPublicKey, error) {
-
-	if !bytes.Equal(algoEd, raw[:2]) {
-		return nil, errors.New("signify: unknown public key algorithm")
-	}
-
+func parseRawPublicKey(data []byte) (*rawPublicKey, error) {
 	var pub rawPublicKey
-	if err := binary.Read(bytes.NewReader(raw), binary.BigEndian, &pub); err != nil {
+	if err := binary.Read(bytes.NewReader(data), binary.BigEndian, &pub); err != nil {
 		return nil, err
 	}
 	return &pub, nil
 }
 
-func ParseSignature(raw []byte) (*rawSignature, error) {
-
-	if !bytes.Equal(algoEd, raw[:2]) {
-		return nil, errors.New("signify: unknown public key algorithm")
-	}
-
+func parseRawSignature(data []byte) (*rawSignature, error) {
 	var sig rawSignature
-	if err := binary.Read(bytes.NewReader(raw), binary.BigEndian, &sig); err != nil {
+	if err := binary.Read(bytes.NewReader(data), binary.BigEndian, &sig); err != nil {
 		return nil, err
 	}
 	return &sig, nil
