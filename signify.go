@@ -182,3 +182,14 @@ func ParseSignature(data []byte) (*Signature, error) {
 	}
 	return &sig, nil
 }
+
+func Sign(priv *PrivateKey, msg []byte) *Signature {
+	return &Signature{
+		Bytes: *ed25519.Sign(&priv.Bytes, msg),
+		Fingerprint: priv.Fingerprint,
+	}
+}
+
+func Verify(pub *PublicKey, msg []byte, sig *Signature) bool {
+	return ed25519.Verify(&pub.Bytes, msg, &sig.Bytes)
+}
