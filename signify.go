@@ -41,13 +41,13 @@ type Signature struct {
 }
 
 type rawEncryptedKey struct {
-	PKAlgo      [2]byte
-	KDFAlgo     [2]byte
-	KDFRounds   uint32
-	Salt        [16]byte
-	Checksum    [8]byte
-	Fingerprint [8]byte
-	PrivateKey  [ed25519.PrivateKeySize]byte
+	PKAlgo       [2]byte
+	KDFAlgo      [2]byte
+	KDFRounds    uint32
+	Salt         [16]byte
+	Checksum     [8]byte
+	Fingerprint  [8]byte
+	EncryptedKey [ed25519.PrivateKeySize]byte
 }
 
 type rawPublicKey struct {
@@ -108,13 +108,16 @@ func parseRawSignature(data []byte) (*rawSignature, error) {
 
 func decryptPrivateKey(rek *rawEncryptedKey, passphrase []byte) (*PrivateKey, error) {
 	var priv PrivateKey
+	var xorkey []byte
+
 	if rek.KDFRounds > 0 {
-		xorkey := bcrypt_pbkdf.Key(passphrase, rek.Salt[:], int(rek.KDFRounds), ed25519.PrivateKeySize)
-		for i := range priv.Bytes {
-			priv.Bytes[i] = rek.PrivateKey[i] ^ xorkey[i]
-		}
+		xorkey = bcrypt_pbkdf.Key(passphrase, rek.Salt[:], int(rek.KDFRounds), ed25519.PrivateKeySize)
 	} else {
-		priv.Bytes = rek.PrivateKey
+		xorkey = make([]byte, ed25519.PrivateKeySize)
+	}
+
+	for i := range priv.Bytes {
+		priv.Bytes[i] = rek.EncryptedKey[i] ^ xorkey[i]
 	}
 
 	sha := sha512.New()
