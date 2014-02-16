@@ -82,6 +82,12 @@ func ReadFile(r io.Reader) (comment string, content []byte, err error) {
 	return
 }
 
+func WriteFile(w io.Writer, comment string, content []byte) error {
+	b64 := base64.StdEncoding.EncodeToString(content)
+	_, err := fmt.Fprintf(w, "%s%s\n%s\n", commentHdr, comment, b64)
+	return err
+}
+
 func parseRawEncryptedKey(data []byte) (*rawEncryptedKey, error) {
 	var ek rawEncryptedKey
 	if err := binary.Read(bytes.NewReader(data), binary.BigEndian, &ek); err != nil {

@@ -219,6 +219,7 @@ func testReadFile(t *testing.T, file, comment string, content []byte) {
 
 	if rcomment != comment {
 		t.Errorf("%s: comment\nexpected: %q\ngot %q\n", file, comment, rcomment)
+		return
 	}
 
 	if !bytes.Equal(rcontent, content) {
@@ -229,6 +230,30 @@ func testReadFile(t *testing.T, file, comment string, content []byte) {
 func TestReadFile(t *testing.T) {
 	for _, tc := range testfiles {
 		testReadFile(t, tc.file, tc.comment, tc.content)
+	}
+}
+
+func testWriteFile(t *testing.T, file, comment string, content []byte) {
+	want, err := ioutil.ReadFile(file)
+	if err != nil {
+		t.Fatalf("%s: %s\n", file, err)
+	}
+
+	wbuf := bytes.Buffer{}
+	err = WriteFile(&wbuf, comment, content)
+	if err != nil {
+		t.Errorf("%s: %s\n", file, err)
+		return
+	}
+
+	if !bytes.Equal(want, wbuf.Bytes()) {
+		t.Errorf("%s: output mismatch\nexpected: %q\ngot %q\n", file, string(want), wbuf.String())
+	}
+}
+
+func TestWriteFile(t *testing.T) {
+	for _, tc := range testfiles {
+		testWriteFile(t, tc.file, tc.comment, tc.content)
 	}
 }
 
