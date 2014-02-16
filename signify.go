@@ -3,6 +3,7 @@ package signify
 import (
 	"bufio"
 	"bytes"
+	"crypto/rand"
 	"crypto/sha512"
 	"crypto/subtle"
 	"encoding/base64"
@@ -17,7 +18,8 @@ import (
 )
 
 const (
-	commentHdr = "untrusted comment: "
+	commentHdr       = "untrusted comment: "
+	defaultKDFRounds = 42
 )
 
 var (
@@ -96,6 +98,12 @@ func parseRawEncryptedKey(data []byte) (*rawEncryptedKey, error) {
 	return &ek, nil
 }
 
+func marshalRawEncryptedKey(rek *rawEncryptedKey) []byte {
+	var wbuf bytes.Buffer
+	binary.Write(&wbuf, binary.BigEndian, rek)
+	return wbuf.Bytes()
+}
+
 func parseRawPublicKey(data []byte) (*rawPublicKey, error) {
 	var pub rawPublicKey
 	if err := binary.Read(bytes.NewReader(data), binary.BigEndian, &pub); err != nil {
@@ -104,12 +112,24 @@ func parseRawPublicKey(data []byte) (*rawPublicKey, error) {
 	return &pub, nil
 }
 
+func marshalRawPublicKey(rpub *rawPublicKey) []byte {
+	var wbuf bytes.Buffer
+	binary.Write(&wbuf, binary.BigEndian, rpub)
+	return wbuf.Bytes()
+}
+
 func parseRawSignature(data []byte) (*rawSignature, error) {
 	var sig rawSignature
 	if err := binary.Read(bytes.NewReader(data), binary.BigEndian, &sig); err != nil {
 		return nil, err
 	}
 	return &sig, nil
+}
+
+func marshalRawSignature(rsig *rawSignature) []byte {
+	var wbuf bytes.Buffer
+	binary.Write(&wbuf, binary.BigEndian, rsig)
+	return wbuf.Bytes()
 }
 
 func decryptPrivateKey(rek *rawEncryptedKey, passphrase []byte) (*PrivateKey, error) {
@@ -126,17 +146,36 @@ func decryptPrivateKey(rek *rawEncryptedKey, passphrase []byte) (*PrivateKey, er
 		priv.Bytes[i] = rek.EncryptedKey[i] ^ xorkey[i]
 	}
 
-	sha := sha512.New()
-	sha.Write(priv.Bytes[:])
-	checksum := sha.Sum(nil)
-
-	if subtle.ConstantTimeCompare(checksum[:len(rek.Checksum)], rek.Checksum[:]) != 1 {
+	privcs := checksum(priv.Bytes[:])
+	if subtle.ConstantTimeCompare(privcs[:], rek.Checksum[:]) != 1 {
 		return nil, errors.New("signify: invalid passphrase")
 	}
 
 	priv.Fingerprint = rek.Fingerprint
 
 	return &priv, nil
+}
+
+func encryptPrivateKey(priv *PrivateKey, passphrase []byte) (*rawEncryptedKey, error) {
+	var rke rawEncryptedKey
+
+	copy(rke.PKAlgo[:], algoEd)
+	copy(rke.KDFAlgo[:], algoBcrypt)
+	rke.KDFRounds = defaultKDFRounds
+	if _, err := io.ReadFull(rand.Reader, rke.Salt[:]); err != nil {
+		return nil, err
+	}
+	rke.Checksum = checksum(priv.Bytes[:])
+	if _, err := io.ReadFull(rand.Reader, rke.Fingerprint[:]); err != nil {
+		return nil, err
+	}
+
+	xorkey := bcrypt_pbkdf.Key(passphrase, rke.Salt[:], int(rke.KDFRounds), ed25519.PrivateKeySize)
+	for i := range rke.EncryptedKey {
+		rke.EncryptedKey[i] = priv.Bytes[i] ^ xorkey[i]
+	}
+
+	return &rke, nil
 }
 
 func ParsePrivateKey(data, passphrase []byte) (*PrivateKey, error) {
@@ -153,6 +192,14 @@ func ParsePrivateKey(data, passphrase []byte) (*PrivateKey, error) {
 	}
 
 	return decryptPrivateKey(rek, passphrase)
+}
+
+func MarshalPrivateKey(priv *PrivateKey, passphrase []byte) ([]byte, error) {
+	rek, err := encryptPrivateKey(priv, passphrase)
+	if err != nil {
+		return nil, err
+	}
+	return marshalRawEncryptedKey(rek), nil
 }
 
 func ParsePublicKey(data []byte) (*PublicKey, error) {
@@ -172,6 +219,14 @@ func ParsePublicKey(data []byte) (*PublicKey, error) {
 	return &pk, nil
 }
 
+func MarshalPublicKey(pub *PublicKey) []byte {
+	var rpub rawPublicKey
+	copy(rpub.PKAlgo[:], algoEd)
+	rpub.PublicKey = pub.Bytes
+	rpub.Fingerprint = pub.Fingerprint
+	return marshalRawPublicKey(&rpub)
+}
+
 func ParseSignature(data []byte) (*Signature, error) {
 	if !bytes.Equal(algoEd, data[:2]) {
 		return nil, errors.New("signify: unknown public key algorithm")
@@ -189,6 +244,14 @@ func ParseSignature(data []byte) (*Signature, error) {
 	return &sig, nil
 }
 
+func MarshalSignature(sig *Signature) []byte {
+	var rsig rawSignature
+	copy(rsig.PKAlgo[:], algoEd)
+	rsig.Signature = sig.Bytes
+	rsig.Fingerprint = sig.Fingerprint
+	return marshalRawSignature(&rsig)
+}
+
 func Sign(priv *PrivateKey, msg []byte) *Signature {
 	return &Signature{
 		Bytes:       *ed25519.Sign(&priv.Bytes, msg),
@@ -198,4 +261,12 @@ func Sign(priv *PrivateKey, msg []byte) *Signature {
 
 func Verify(pub *PublicKey, msg []byte, sig *Signature) bool {
 	return ed25519.Verify(&pub.Bytes, msg, &sig.Bytes)
+}
+
+func checksum(d []byte) [8]byte {
+	var chk [8]byte
+	sha := sha512.New()
+	sha.Write(d)
+	copy(chk[:], sha.Sum(nil))
+	return chk
 }
