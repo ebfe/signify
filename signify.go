@@ -23,8 +23,8 @@ const (
 )
 
 var (
-	algoEd     = []byte{'E', 'd'}
-	algoBcrypt = []byte{'B', 'K'}
+	algoEd     = [2]byte{'E', 'd'}
+	algoBcrypt = [2]byte{'B', 'K'}
 )
 
 type PrivateKey struct {
@@ -158,9 +158,9 @@ func decryptPrivateKey(rek *rawEncryptedKey, passphrase []byte) (*PrivateKey, er
 
 func encryptPrivateKey(priv *PrivateKey, passphrase []byte) (*rawEncryptedKey, error) {
 	var rke rawEncryptedKey
-
-	copy(rke.PKAlgo[:], algoEd)
-	copy(rke.KDFAlgo[:], algoBcrypt)
+	// FIXME: rand, kdfrounds param
+	rke.PKAlgo = algoEd
+	rke.KDFAlgo = algoBcrypt
 	rke.KDFRounds = defaultKDFRounds
 	if _, err := io.ReadFull(rand.Reader, rke.Salt[:]); err != nil {
 		return nil, err
@@ -179,10 +179,10 @@ func encryptPrivateKey(priv *PrivateKey, passphrase []byte) (*rawEncryptedKey, e
 }
 
 func ParsePrivateKey(data, passphrase []byte) (*PrivateKey, error) {
-	if !bytes.Equal(algoEd, data[:2]) {
+	if !bytes.Equal(algoEd[:], data[:2]) {
 		return nil, errors.New("signify: unknown public key algorithm")
 	}
-	if !bytes.Equal(algoBcrypt, data[2:4]) {
+	if !bytes.Equal(algoBcrypt[:], data[2:4]) {
 		return nil, errors.New("signify: unknown kdf algorithm")
 	}
 
@@ -203,7 +203,7 @@ func MarshalPrivateKey(priv *PrivateKey, passphrase []byte) ([]byte, error) {
 }
 
 func ParsePublicKey(data []byte) (*PublicKey, error) {
-	if !bytes.Equal(algoEd, data[:2]) {
+	if !bytes.Equal(algoEd[:], data[:2]) {
 		return nil, errors.New("signify: unknown public key algorithm")
 	}
 
@@ -220,15 +220,15 @@ func ParsePublicKey(data []byte) (*PublicKey, error) {
 }
 
 func MarshalPublicKey(pub *PublicKey) []byte {
-	var rpub rawPublicKey
-	copy(rpub.PKAlgo[:], algoEd)
-	rpub.PublicKey = pub.Bytes
-	rpub.Fingerprint = pub.Fingerprint
-	return marshalRawPublicKey(&rpub)
+	return marshalRawPublicKey(&rawPublicKey{
+		PKAlgo: algoEd,
+		PublicKey: pub.Bytes,
+		Fingerprint: pub.Fingerprint,
+	})
 }
 
 func ParseSignature(data []byte) (*Signature, error) {
-	if !bytes.Equal(algoEd, data[:2]) {
+	if !bytes.Equal(algoEd[:], data[:2]) {
 		return nil, errors.New("signify: unknown public key algorithm")
 	}
 
@@ -245,11 +245,11 @@ func ParseSignature(data []byte) (*Signature, error) {
 }
 
 func MarshalSignature(sig *Signature) []byte {
-	var rsig rawSignature
-	copy(rsig.PKAlgo[:], algoEd)
-	rsig.Signature = sig.Bytes
-	rsig.Fingerprint = sig.Fingerprint
-	return marshalRawSignature(&rsig)
+	return marshalRawSignature(&rawSignature{
+		PKAlgo: algoEd,
+		Signature: sig.Bytes,
+		Fingerprint: sig.Fingerprint,
+	})
 }
 
 func Sign(priv *PrivateKey, msg []byte) *Signature {
