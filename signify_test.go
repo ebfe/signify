@@ -2,6 +2,7 @@ package signify
 
 import (
 	"bytes"
+	"crypto/rand"
 	"io/ioutil"
 	"testing"
 
@@ -396,6 +397,23 @@ func TestMarshalSignature(t *testing.T) {
 		if !bytes.Equal(content, tc.content) {
 			t.Errorf("%s: expected: %+v got: %+v\n", tc.file, tc.content, sig)
 		}
+	}
+}
+
+func TestGenerateKey(t *testing.T) {
+
+	pub, priv, err := GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if pub.Fingerprint != priv.Fingerprint {
+		t.Error("pub/priv fingerprints don't match")
+	}
+
+	msg := []byte("testmsg")
+	if !Verify(pub, msg, Sign(priv, msg)) {
+		t.Error("verify failed")
 	}
 }
 

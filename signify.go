@@ -221,8 +221,8 @@ func ParsePublicKey(data []byte) (*PublicKey, error) {
 
 func MarshalPublicKey(pub *PublicKey) []byte {
 	return marshalRawPublicKey(&rawPublicKey{
-		PKAlgo: algoEd,
-		PublicKey: pub.Bytes,
+		PKAlgo:      algoEd,
+		PublicKey:   pub.Bytes,
 		Fingerprint: pub.Fingerprint,
 	})
 }
@@ -246,8 +246,8 @@ func ParseSignature(data []byte) (*Signature, error) {
 
 func MarshalSignature(sig *Signature) []byte {
 	return marshalRawSignature(&rawSignature{
-		PKAlgo: algoEd,
-		Signature: sig.Bytes,
+		PKAlgo:      algoEd,
+		Signature:   sig.Bytes,
 		Fingerprint: sig.Fingerprint,
 	})
 }
@@ -261,6 +261,24 @@ func Sign(priv *PrivateKey, msg []byte) *Signature {
 
 func Verify(pub *PublicKey, msg []byte, sig *Signature) bool {
 	return ed25519.Verify(&pub.Bytes, msg, &sig.Bytes)
+}
+
+func GenerateKey(rand io.Reader) (*PublicKey, *PrivateKey, error) {
+	var fp [8]byte
+
+	pubb, privb, err := ed25519.GenerateKey(rand)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	_, err = io.ReadFull(rand, fp[:])
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return &PublicKey{Bytes: *pubb, Fingerprint: fp},
+		&PrivateKey{Bytes: *privb, Fingerprint: fp},
+		nil
 }
 
 func checksum(d []byte) [8]byte {
