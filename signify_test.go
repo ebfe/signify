@@ -333,6 +333,8 @@ func TestParsePrivateKey(t *testing.T) {
 	}
 }
 
+// TODO: TestMarshalPrivateKey
+
 func TestParsePublicKey(t *testing.T) {
 	for _, tc := range testfiles {
 		want, ok := tc.parsed.(PublicKey)
@@ -352,6 +354,19 @@ func TestParsePublicKey(t *testing.T) {
 	}
 }
 
+func TestMarshalPublicKey(t *testing.T) {
+	for _, tc := range testfiles {
+		pub, ok := tc.parsed.(PublicKey)
+		if !ok {
+			continue
+		}
+		content := MarshalPublicKey(&pub)
+		if !bytes.Equal(content, tc.content) {
+			t.Errorf("%s: expected: %+v got: %+v\n", tc.file, tc.content, pub)
+		}
+	}
+}
+
 func TestParseSignature(t *testing.T) {
 	for _, tc := range testfiles {
 		want, ok := tc.parsed.(Signature)
@@ -367,6 +382,19 @@ func TestParseSignature(t *testing.T) {
 
 		if want != *sig {
 			t.Errorf("%s: expected: %+v got: %+v\n", tc.file, want, sig)
+		}
+	}
+}
+
+func TestMarshalSignature(t *testing.T) {
+	for _, tc := range testfiles {
+		sig, ok := tc.parsed.(Signature)
+		if !ok {
+			continue
+		}
+		content := MarshalSignature(&sig)
+		if !bytes.Equal(content, tc.content) {
+			t.Errorf("%s: expected: %+v got: %+v\n", tc.file, tc.content, sig)
 		}
 	}
 }
