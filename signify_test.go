@@ -334,7 +334,95 @@ func TestParsePrivateKey(t *testing.T) {
 	}
 }
 
-// TODO: TestMarshalPrivateKey
+func TestMarshalRawEncryptedKey(t *testing.T) {
+	for _, tc := range testfiles {
+		rek, ok := tc.parsedRaw.(rawEncryptedKey)
+		if !ok {
+			continue
+		}
+		raw := marshalRawEncryptedKey(&rek)
+		if !bytes.Equal(raw, tc.content) {
+			t.Errorf("%s: expected %x\ngot: %x\n", tc.file, tc.content, raw)
+		}
+	}
+}
+
+func TestEncryptPrivateKey(t *testing.T) {
+	var passphrase = []byte("passphrase")
+
+	_, priv, err := GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rek, err := encryptPrivateKey(priv, rand.Reader, passphrase, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if rek.PKAlgo != algoEd {
+		t.Errorf("unexpected PKAlgo %x\n", rek.PKAlgo)
+	}
+
+	if rek.KDFAlgo != algoBcrypt {
+		t.Errorf("unexpected KDFAlgo %x\n", rek.KDFAlgo)
+	}
+
+	if rek.KDFRounds != 1 {
+		t.Errorf("unexpected KDFRounds %x\n", rek.KDFRounds)
+	}
+
+	if rek.Fingerprint != priv.Fingerprint {
+		t.Errorf("fingerprint changed\n")
+	}
+
+	decpriv, err := decryptPrivateKey(rek, passphrase)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if *priv != *decpriv {
+		t.Errorf("expected: %+v\n got: %+v\n", priv, decpriv)
+	}
+
+
+	rek, err = encryptPrivateKey(priv, rand.Reader, passphrase, -1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rek.KDFRounds != defaultKDFRounds {
+		t.Error("KDFrounds < 0 should set KDFRounds = defaultKDFRounds")
+	}
+
+	rek, err = encryptPrivateKey(priv, rand.Reader, []byte{}, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rek.KDFRounds != 0 {
+		t.Error("empty passphrase should set KDFRounds = 0")
+	}
+}
+
+func TestMarshalPrivateKey(t *testing.T) {
+	var passphrase = []byte("passphrase")
+
+	_, priv, err := GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	raw, err := MarshalPrivateKey(priv, rand.Reader, passphrase, -1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rek, err := parseRawEncryptedKey(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rek.KDFRounds != defaultKDFRounds {
+		t.Error("rounds < 0 should choose defaultKDFrounds")
+	}
+}
 
 func TestParsePublicKey(t *testing.T) {
 	for _, tc := range testfiles {

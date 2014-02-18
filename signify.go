@@ -3,7 +3,6 @@ package signify
 import (
 	"bufio"
 	"bytes"
-	"crypto/rand"
 	"crypto/sha512"
 	"crypto/subtle"
 	"encoding/base64"
@@ -136,7 +135,7 @@ func decryptPrivateKey(rek *rawEncryptedKey, passphrase []byte) (*PrivateKey, er
 	var priv PrivateKey
 	var xorkey []byte
 
-	if rek.KDFRounds > 0 {
+	if rek.KDFRounds != 0 {
 		xorkey = bcrypt_pbkdf.Key(passphrase, rek.Salt[:], int(rek.KDFRounds), ed25519.PrivateKeySize)
 	} else {
 		xorkey = make([]byte, ed25519.PrivateKeySize)
@@ -156,21 +155,26 @@ func decryptPrivateKey(rek *rawEncryptedKey, passphrase []byte) (*PrivateKey, er
 	return &priv, nil
 }
 
-func encryptPrivateKey(priv *PrivateKey, passphrase []byte) (*rawEncryptedKey, error) {
+func encryptPrivateKey(priv *PrivateKey, rand io.Reader, passphrase []byte, rounds int) (*rawEncryptedKey, error) {
 	var rke rawEncryptedKey
-	// FIXME: rand, kdfrounds param
+
+	if rounds < 0 {
+		rounds = defaultKDFRounds
+	}
+	if len(passphrase) == 0 {
+		rounds = 0
+	}
+
 	rke.PKAlgo = algoEd
 	rke.KDFAlgo = algoBcrypt
-	rke.KDFRounds = defaultKDFRounds
-	if _, err := io.ReadFull(rand.Reader, rke.Salt[:]); err != nil {
+	rke.KDFRounds = uint32(rounds)
+	if _, err := io.ReadFull(rand, rke.Salt[:]); err != nil {
 		return nil, err
 	}
 	rke.Checksum = checksum(priv.Bytes[:])
-	if _, err := io.ReadFull(rand.Reader, rke.Fingerprint[:]); err != nil {
-		return nil, err
-	}
+	rke.Fingerprint = priv.Fingerprint
 
-	xorkey := bcrypt_pbkdf.Key(passphrase, rke.Salt[:], int(rke.KDFRounds), ed25519.PrivateKeySize)
+	xorkey := bcrypt_pbkdf.Key(passphrase, rke.Salt[:], rounds, ed25519.PrivateKeySize)
 	for i := range rke.EncryptedKey {
 		rke.EncryptedKey[i] = priv.Bytes[i] ^ xorkey[i]
 	}
@@ -194,8 +198,8 @@ func ParsePrivateKey(data, passphrase []byte) (*PrivateKey, error) {
 	return decryptPrivateKey(rek, passphrase)
 }
 
-func MarshalPrivateKey(priv *PrivateKey, passphrase []byte) ([]byte, error) {
-	rek, err := encryptPrivateKey(priv, passphrase)
+func MarshalPrivateKey(priv *PrivateKey, rand io.Reader, passphrase []byte, rounds int) ([]byte, error) {
+	rek, err := encryptPrivateKey(priv, rand, passphrase, rounds)
 	if err != nil {
 		return nil, err
 	}
