@@ -3,6 +3,7 @@ package signify
 import (
 	"bytes"
 	"crypto/rand"
+	"io"
 	"io/ioutil"
 	"testing"
 
@@ -234,6 +235,34 @@ func TestReadFile(t *testing.T) {
 	}
 }
 
+func TestReadFileError(t *testing.T) {
+	buf := []byte(`untrusted comment: signify secret key
+RWRCSwAAACq7Bxd5tYRW5fZh3OBEe5jXQkLAjcfAUhbT/7Bz6JIJMNPbT2OyWaR4JlpQBNNatfiSsnVMMBISY28VKdnfQUzeTBRgubEUHLzD3tHneW3QEtftkoj08WovEzg9YLk1Q9U=
+`)
+	_, _, err := ReadFile(io.LimitReader(bytes.NewReader(buf), 28))
+	if err == nil {
+		t.Errorf("no error on incomplete input")
+	}
+	_, _, err = ReadFile(io.LimitReader(bytes.NewReader(buf), 48))
+	if err == nil {
+		t.Errorf("no error on incomplete input")
+	}
+	buf[0] = '!'
+	_, _, err = ReadFile(bytes.NewReader(buf))
+	if err == nil {
+		t.Errorf("no error on invalid input")
+	}
+	buf = []byte(`untrusted comment: signify secret key`)
+	_, _, err = ReadFile(bytes.NewReader(buf))
+	if err == nil {
+		t.Errorf("no error on incomplete input")
+	}
+	_, _, err = ReadFile(bytes.NewReader([]byte{}))
+	if err == nil {
+		t.Errorf("no error on empty input")
+	}
+}
+
 func testWriteFile(t *testing.T, file, comment string, content []byte) {
 	want, err := ioutil.ReadFile(file)
 	if err != nil {
@@ -334,6 +363,32 @@ func TestParsePrivateKey(t *testing.T) {
 	}
 }
 
+func TestParsePrivateKeyErrors(t *testing.T) {
+	tc := getTestFile(t, "_testdata/test.key")
+	buf := make([]byte, len(tc.content))
+	copy(buf, tc.content)
+
+	_, err := ParsePrivateKey(buf[:16], tc.passphrase)
+	if err == nil {
+		t.Error("no error on incomplete input")
+	}
+	_, err = ParsePrivateKey(buf, []byte("wrong passphrase"))
+	if err == nil {
+		t.Error("no error with wrong passphrase")
+	}
+	buf[2] ^= 0x80
+	_, err = ParsePrivateKey(buf, tc.passphrase)
+	if err == nil {
+		t.Error("no error on unknown KDFAlgo")
+	}
+	buf[2] ^= 0x80
+	buf[0] ^= 0x80
+	_, err = ParsePrivateKey(buf, tc.passphrase)
+	if err == nil {
+		t.Error("no error on unknown PKAlgo")
+	}
+}
+
 func TestMarshalRawEncryptedKey(t *testing.T) {
 	for _, tc := range testfiles {
 		rek, ok := tc.parsedRaw.(rawEncryptedKey)
@@ -380,7 +435,6 @@ func TestEncryptPrivateKey(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
 	if *priv != *decpriv {
 		t.Errorf("expected: %+v\n got: %+v\n", priv, decpriv)
 	}
@@ -411,16 +465,16 @@ func TestMarshalPrivateKey(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	raw, err := MarshalPrivateKey(priv, rand.Reader, passphrase, -1)
+	raw, err := MarshalPrivateKey(priv, rand.Reader, passphrase, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	rek, err := parseRawEncryptedKey(raw)
+	ppriv, err := ParsePrivateKey(raw, passphrase)
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
 	}
-	if rek.KDFRounds != defaultKDFRounds {
-		t.Error("rounds < 0 should choose defaultKDFrounds")
+	if *priv != *ppriv {
+		t.Errorf("expected: %+v\ngot %+v\n", priv, ppriv)
 	}
 }
 
@@ -440,6 +494,22 @@ func TestParsePublicKey(t *testing.T) {
 		if want != *pub {
 			t.Errorf("%s: expected: %+v got: %+v\n", tc.file, want, pub)
 		}
+	}
+}
+
+func TestParsePublicKeyErrors(t *testing.T) {
+	tc := getTestFile(t, "_testdata/test.pub")
+	buf := make([]byte, len(tc.content))
+	copy(buf, tc.content)
+
+	_, err := ParsePublicKey(buf[:16])
+	if err == nil {
+		t.Error("no error on incomplete input")
+	}
+	buf[0] ^= 0x80
+	_, err = ParsePublicKey(buf)
+	if err == nil {
+		t.Error("no error on unknown PKAlgo")
 	}
 }
 
@@ -472,6 +542,22 @@ func TestParseSignature(t *testing.T) {
 		if want != *sig {
 			t.Errorf("%s: expected: %+v got: %+v\n", tc.file, want, sig)
 		}
+	}
+}
+
+func TestParseSignatureErrors(t *testing.T) {
+	tc := getTestFile(t, "_testdata/test.msg.sig")
+	buf := make([]byte, len(tc.content))
+	copy(buf, tc.content)
+
+	_, err := ParseSignature(buf[:16])
+	if err == nil {
+		t.Error("no error on incomplete input")
+	}
+	buf[0] ^= 0x80
+	_, err = ParseSignature(buf)
+	if err == nil {
+		t.Error("no error on unknown PKAlgo")
 	}
 }
 
