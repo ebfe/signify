@@ -439,7 +439,6 @@ func TestEncryptPrivateKey(t *testing.T) {
 		t.Errorf("expected: %+v\n got: %+v\n", priv, decpriv)
 	}
 
-
 	rek, err = encryptPrivateKey(priv, rand.Reader, passphrase, -1)
 	if err != nil {
 		t.Fatal(err)
