@@ -12,8 +12,8 @@ import (
 	"io"
 	"strings"
 
-	"github.com/agl/ed25519"
 	"github.com/ebfe/bcrypt_pbkdf"
+	"golang.org/x/crypto/ed25519"
 )
 
 const (
@@ -257,14 +257,16 @@ func MarshalSignature(sig *Signature) []byte {
 }
 
 func Sign(priv *PrivateKey, msg []byte) *Signature {
-	return &Signature{
-		Bytes:       *ed25519.Sign(&priv.Bytes, msg),
-		Fingerprint: priv.Fingerprint,
-	}
+	var sig = Signature{Fingerprint: priv.Fingerprint}
+
+	s := ed25519.Sign(ed25519.PrivateKey(priv.Bytes[:]), msg)
+	copy(sig.Bytes[:], s)
+
+	return &sig
 }
 
 func Verify(pub *PublicKey, msg []byte, sig *Signature) bool {
-	return ed25519.Verify(&pub.Bytes, msg, &sig.Bytes)
+	return ed25519.Verify(pub.Bytes[:], msg, sig.Bytes[:])
 }
 
 func GenerateKey(rand io.Reader) (*PublicKey, *PrivateKey, error) {
@@ -280,9 +282,13 @@ func GenerateKey(rand io.Reader) (*PublicKey, *PrivateKey, error) {
 		return nil, nil, err
 	}
 
-	return &PublicKey{Bytes: *pubb, Fingerprint: fp},
-		&PrivateKey{Bytes: *privb, Fingerprint: fp},
-		nil
+	pub := PublicKey{Fingerprint: fp}
+	priv := PrivateKey{Fingerprint: fp}
+
+	copy(pub.Bytes[:], pubb)
+	copy(priv.Bytes[:], privb)
+
+	return &pub, &priv, nil
 }
 
 func checksum(d []byte) [8]byte {
