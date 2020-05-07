@@ -3,6 +3,7 @@ package signify
 import (
 	"bufio"
 	"bytes"
+	"crypto/ed25519"
 	"crypto/sha512"
 	"crypto/subtle"
 	"encoding/base64"
@@ -13,7 +14,6 @@ import (
 	"strings"
 
 	"github.com/ebfe/bcrypt_pbkdf"
-	"golang.org/x/crypto/ed25519"
 )
 
 const (

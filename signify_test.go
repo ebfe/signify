@@ -2,12 +2,11 @@ package signify
 
 import (
 	"bytes"
+	"crypto/ed25519"
 	"crypto/rand"
 	"io"
 	"io/ioutil"
 	"testing"
-
-	"github.com/agl/ed25519"
 )
 
 type testfile struct {
